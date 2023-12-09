@@ -4,4 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-wgpu = "0.10"  # Check for the latest version
+wgpu = "0.18.0" 
+winit = "0.29.4"

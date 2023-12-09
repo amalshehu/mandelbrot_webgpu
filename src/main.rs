@@ -1,8 +1,50 @@
+use env_logger;
+use wgpu::util::DeviceExt;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
+    window::{Window, WindowBuilder},
 };
+
+async fn run(event_loop: EventLoop<()>, window: Window) {
+    let size = window.inner_size();
+
+    // The instance is a handle to our GPU
+    let instance = Instance::new(Backends::PRIMARY);
+
+    // The surface is what we will draw on
+    let surface = unsafe { instance.create_surface(&window) };
+
+    // Adapter is our handle to the physical GPU
+    let adapter = instance
+        .request_adapter(&RequestAdapterOptions {
+            power_preference: PowerPreference::HighPerformance,
+            compatible_surface: Some(&surface),
+        })
+        .await
+        .unwrap();
+
+    // Device is our handle to the GPU device
+    let (device, queue) = adapter
+        .request_device(&Default::default(), None)
+        .await
+        .unwrap();
+
+    // Configure the surface to use the correct format
+    let config = SurfaceConfiguration {
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        format: surface.get_supported_formats(&adapter)[0],
+        width: size.width,
+        height: size.height,
+        present_mode: wgpu::PresentMode::Fifo,
+    };
+    surface.configure(&device, &config);
+
+    let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        label: Some("Shader"),
+        source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+    });
+}
 
 fn main() {
     env_logger::init();
@@ -20,4 +62,5 @@ fn main() {
             _ => {}
         }
     });
+    pollster::block_on(run(event_loop, window))
 }

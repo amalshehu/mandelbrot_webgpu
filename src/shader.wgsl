@@ -26,7 +26,6 @@ fn fs_main([[builtin(position)]] frag_coord: vec4<f32>) -> [[location(0)]] vec4<
             2.0 * z.x * z.y + c.y
         );
     }
-
-    let color = vec4<f32>(0.5 + 0.5 * cos(3.0 + i * 0.15), 0.5 + 0.5 * cos(3.0 + i * 0.15), 0.5 + 0.5 * cos(3.0 + i * 0.15), 1.0);
+    let color = vec4<f32>(f32(i) / 1000.0, 0.0, 0.0, 1.0);
     return color;
 }

@@ -1,6 +1,7 @@
 use env_logger;
 use wgpu::{Backends, Instance, PowerPreference, RequestAdapterOptions, SurfaceConfiguration};
 use winit::{
+    dpi::LogicalSize,
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
@@ -8,10 +9,8 @@ use winit::{
 
 async fn run(event_loop: EventLoop<()>, window: Window) {
     let size = window.inner_size();
-
     // The instance is a handle to our GPU
     let instance = Instance::new(Backends::PRIMARY);
-
     // The surface is what we will draw on
     let surface = unsafe { instance.create_surface(&window) };
 
@@ -143,7 +142,10 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
 fn main() {
     env_logger::init();
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let window = WindowBuilder::new()
+        .with_inner_size(LogicalSize::new(800, 600))
+        .build(&event_loop)
+        .unwrap();
 
     pollster::block_on(run(event_loop, window));
 }

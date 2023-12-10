@@ -25,8 +25,8 @@ fn vs_main([[builtin(vertex_index)]] vertex_index : u32) -> [[builtin(position)]
 
 [[stage(fragment)]]
 fn fs_main([[builtin(position)]] frag_coord: vec4<f32>) -> [[location(0)]] vec4<f32> {
-    let scaleX = params.zoom / 1600.0; 
-    let scaleY = params.zoom / 1200.0;
+    let scaleX = params.zoom / 800.0; 
+    let scaleY = params.zoom / 600.0;
     let xOffset = params.offsetX; 
     let yOffset = params.offsetY;
     let c = vec2<f32>(
@@ -46,17 +46,10 @@ fn fs_main([[builtin(position)]] frag_coord: vec4<f32>) -> [[location(0)]] vec4<
         );
     }
 
-    if (i == 1000) {
-        return vec4<f32>(0.0, 0.0, 0.0, 1.0); // Black color for points inside the Mandelbrot set
-    }
-
     let normalized = f32(i) / 1000.0;
-    let color = vec4<f32>(
-        0.3 + 0.7 * cos(3.0 + normalized * 12.56),
-        0.3 + 0.7 * sin(4.0 + normalized * 12.56),
-        0.3 + 0.7 * cos(5.0 + normalized * 12.56),
-        1.0
-    );
+    let color = vec4<f32>(0.5 + 0.5 * cos(3.0 + normalized * 6.28), 
+                          0.5 + 0.5 * cos(4.0 + normalized * 6.28), 
+                          0.5 + 0.5 * cos(5.0 + normalized * 6.28), 
+                          1.0);
     return color;
 }
-

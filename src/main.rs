@@ -4,7 +4,7 @@ use wgpu::{
     SurfaceConfiguration,
 };
 use winit::{
-    dpi::LogicalSize,
+    dpi::{LogicalSize, PhysicalPosition},
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
@@ -13,6 +13,7 @@ use winit::{
 struct State {
     zoom: f32,
     offset: [f32; 2],
+    mouse_pos: [f32; 2],
 }
 
 async fn run(event_loop: EventLoop<()>, window: Window) {
@@ -51,6 +52,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     let mut state = State {
         zoom: 1.0,
         offset: [0.0, 0.0],
+        mouse_pos: [0.0, 0.0],
     };
 
     // Uniform buffer for zoom and offset
@@ -114,6 +116,49 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         multisample: wgpu::MultisampleState::default(),
     });
 
+    fn window_to_scene_coords(
+        mouse_pos: [f32; 2],
+        zoom: f32,
+        offset: [f32; 2],
+        window_size: [f32; 2],
+    ) -> [f32; 2] {
+        // Convert mouse position from pixels to normalized device coordinates (-1 to 1)
+        let ndc_x = (mouse_pos[0] / window_size[0]) * 2.0 - 1.0;
+        let ndc_y = (mouse_pos[1] / window_size[1]) * 2.0 - 1.0;
+
+        // Adjust for zoom and offset
+        let scene_x = ndc_x * zoom - offset[0];
+        let scene_y = ndc_y * zoom - offset[1];
+
+        [scene_x, scene_y]
+    }
+
+    fn adjust_offset_for_zoom(
+        scene_pos_before_zoom: [f32; 2],
+        new_zoom: f32,
+        old_offset: [f32; 2],
+        window_size: [f32; 2],
+    ) -> [f32; 2] {
+        // Convert the scene position back to NDC at the new zoom level
+        let ndc_x = (scene_pos_before_zoom[0] + old_offset[0]) / new_zoom;
+        let ndc_y = (scene_pos_before_zoom[1] + old_offset[1]) / new_zoom;
+
+        // Convert NDC to screen space (pixels)
+        let screen_x = (ndc_x + 1.0) * 0.5 * window_size[0];
+        let screen_y = (ndc_y + 1.0) * 0.5 * window_size[1];
+
+        // Calculate the difference in screen space
+        let delta_x = screen_x - scene_pos_before_zoom[0];
+        let delta_y = screen_y - scene_pos_before_zoom[1];
+
+        // Convert this difference back to scene coordinates
+        let scene_delta_x = delta_x * new_zoom;
+        let scene_delta_y = delta_y * new_zoom;
+
+        // Adjust the offset by this difference
+        [old_offset[0] - scene_delta_x, old_offset[1] - scene_delta_y]
+    }
+
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
 
@@ -175,6 +220,13 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                 window.request_redraw();
             }
             Event::WindowEvent {
+                event: WindowEvent::CursorMoved { position, .. },
+                ..
+            } => {
+                let PhysicalPosition { x, y } = position;
+                state.mouse_pos = [x as f32, y as f32];
+            }
+            Event::WindowEvent {
                 event:
                     WindowEvent::MouseInput {
                         state: ElementState::Pressed,
@@ -183,8 +235,28 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                     },
                 ..
             } => {
-                state.zoom /= 1.1; // Increase zoom by 10%
-                                   // Update uniform buffer with new zoom and offset values
+                // Convert mouse position to scene coordinates
+                let scene_pos = window_to_scene_coords(
+                    state.mouse_pos,
+                    state.zoom,
+                    state.offset,
+                    [config.width as f32, config.height as f32],
+                );
+
+                // Adjust zoom
+                state.zoom /= 1.1;
+                let new_zoom = state.zoom / 1.1; // Adjust this factor based on your zooming logic
+
+                let window_size = [config.width as f32, config.height as f32];
+                // Adjust offset based on the new zoom level
+
+                state.offset = adjust_offset_for_zoom(
+                    scene_pos,
+                    new_zoom, // New zoom level
+                    state.offset,
+                    window_size,
+                );
+                // Update uniform buffer with new zoom and offset values
                 queue.write_buffer(
                     &uniform_buffer,
                     0,
@@ -201,7 +273,7 @@ fn main() {
     env_logger::init();
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_inner_size(LogicalSize::new(1600, 1200))
+        .with_inner_size(LogicalSize::new(800, 600))
         .with_title("Mandelbrot Set")
         .build(&event_loop)
         .unwrap();
